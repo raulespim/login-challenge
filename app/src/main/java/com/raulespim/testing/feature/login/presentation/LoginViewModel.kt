@@ -13,13 +13,20 @@ class LoginViewModel(
     private val validateCredentialsUseCase: ValidateCredentialsUseCase
 ) : ViewModel() {
 
-    val _isValidCredentials = MutableStateFlow(false)
-    val isValidCredentials: StateFlow<Boolean> get() = _isValidCredentials.asStateFlow()
+    val _isValidCredentials = MutableStateFlow<Boolean?>(null)
+    val isValidCredentials: StateFlow<Boolean?> get() = _isValidCredentials.asStateFlow()
 
-    fun isValidCredentials(username: String, password: String) {
+    fun validateCredentials(username: String, password: String) {
         viewModelScope.launch {
             validateCredentialsUseCase.invoke(username, password).collect { result ->
-
+                when (result) {
+                    is Result.Success -> {
+                        _isValidCredentials.value = result.data
+                    }
+                    is Result.Error -> {
+                        _isValidCredentials.value = false
+                    }
+                }
             }
         }
     }

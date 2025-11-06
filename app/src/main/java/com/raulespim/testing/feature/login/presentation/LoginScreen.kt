@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -15,6 +16,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,29 +28,37 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
+import com.raulespim.testing.feature.login.data.repository.LoginRepositoryImpl
+import com.raulespim.testing.feature.login.domain.usecase.ValidateCredentialsUseCase
 import com.raulespim.testing.feature.welcome.presentation.WelcomeScreen
 import com.raulespim.testing.ui.theme.TestingTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginScreen(viewModel: ViewModel) {
+fun LoginScreen(viewModel: LoginViewModel) {
 
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    val usernameTest = "raul.espim@example.com"
-    val passwordTest = "123456"
 
-    var showError by remember { mutableStateOf(false) }
+    val isValidCredentials by viewModel.isValidCredentials.collectAsState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var showWelcomeScreen by remember { mutableStateOf(false) }
-    var sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    // Reage quando o resultado da validação muda
+    LaunchedEffect(isValidCredentials) {
+        if (isValidCredentials == true) {
+            showWelcomeScreen = true
+        }
+    }
 
-    Box {
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.fillMaxSize().padding(16.dp)
         ) {
 
             TextField(
@@ -80,7 +91,7 @@ fun LoginScreen(viewModel: ViewModel) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (showError) {
+            if (isValidCredentials == false) {
                 Text(
                     text = "Username or Password are invalid, please try again."
                 )
@@ -91,15 +102,7 @@ fun LoginScreen(viewModel: ViewModel) {
             Button(
                 enabled = username.isNotBlank() && password.isNotBlank(),
                 onClick = {
-
-                    if (username == usernameTest && password == passwordTest) {
-
-                        showWelcomeScreen = true
-                        showError = false
-                    } else {
-                        showError = true
-                    }
-
+                    viewModel.validateCredentials(username, password)
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Black,
@@ -129,9 +132,14 @@ fun LoginScreen(viewModel: ViewModel) {
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun LoginScreenPreview() {
+
+    val repository = LoginRepositoryImpl()
+    val validateCredentialsUseCase = ValidateCredentialsUseCase(repository)
+    val viewModel = LoginViewModel(validateCredentialsUseCase)
+
     TestingTheme {
         Surface {
-            LoginScreen()
+            LoginScreen(viewModel)
         }
     }
 }
