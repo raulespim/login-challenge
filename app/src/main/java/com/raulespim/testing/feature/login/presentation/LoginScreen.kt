@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -36,21 +38,8 @@ import com.raulespim.testing.ui.theme.TestingTheme
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(viewModel: LoginViewModel) {
-
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-
-    val isValidCredentials by viewModel.isValidCredentials.collectAsState()
+    val state by viewModel.state.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    var showWelcomeScreen by remember { mutableStateOf(false) }
-
-    // Reage quando o resultado da validação muda
-    LaunchedEffect(isValidCredentials) {
-        if (isValidCredentials == true) {
-            showWelcomeScreen = true
-        }
-    }
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -62,10 +51,8 @@ fun LoginScreen(viewModel: LoginViewModel) {
         ) {
 
             TextField(
-                value = username,
-                onValueChange = { newValue ->
-                    username = newValue
-                },
+                value = state.username,
+                onValueChange = { viewModel.onIntent(LoginIntent.UpdateUsername(it)) },
                 placeholder = {
                     Text(text = "Your Username")
                 },
@@ -77,10 +64,8 @@ fun LoginScreen(viewModel: LoginViewModel) {
             Spacer(modifier = Modifier.height(8.dp))
 
             TextField(
-                value = password,
-                onValueChange = { newValue ->
-                    password = newValue
-                },
+                value = state.password,
+                onValueChange = { viewModel.onIntent(LoginIntent.UpdatePassword(it)) },
                 placeholder = {
                     Text(text = "Your Password")
                 },
@@ -91,18 +76,19 @@ fun LoginScreen(viewModel: LoginViewModel) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (isValidCredentials == false) {
+            if (state.errorMessage != null) {
                 Text(
-                    text = "Username or Password are invalid, please try again."
+                    text = state.errorMessage!!,
+                    color = Color.Red
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(
-                enabled = username.isNotBlank() && password.isNotBlank(),
+                enabled = state.isButtonEnabled,
                 onClick = {
-                    viewModel.validateCredentials(username, password)
+                    viewModel.onIntent(LoginIntent.Submit)
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Black,
@@ -110,14 +96,21 @@ fun LoginScreen(viewModel: LoginViewModel) {
                 )
 
             ) {
-                Text(text = "Login")
+                if (state.isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                } else {
+                    Text(text = "Login")
+                }
             }
 
         }
 
-        if (showWelcomeScreen) {
+        if (state.isLoggedIn) {
             ModalBottomSheet(
-                onDismissRequest = { showWelcomeScreen = false },
+                onDismissRequest = { viewModel.onIntent(LoginIntent.DismissWelcome) },
                 sheetState = sheetState,
                 content = {
                     WelcomeScreen()
